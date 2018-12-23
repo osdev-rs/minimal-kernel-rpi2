@@ -11,6 +11,34 @@
 // r2 -> 0x00000100 - start of ATAGS
 // preserve these registers as argument for kernel_main
 _start:
+        ldr pc,reset_vector
+        ldr pc,undefined_vector
+	ldr pc,swi_vector
+	ldr pc,prefetch_vector
+	ldr pc,data_vector
+	ldr pc,unused_vector
+	ldr pc,irq_vector
+	ldr pc,fiq_vector
+
+reset_vector:      .word reset_asm_handler
+undefined_vector:  .word undefined_asm_handler
+swi_vector:        .word swi_asm_handler
+prefetch_vector:   .word prefetch_asm_handler
+data_vector:       .word data_asm_handler
+unused_vector:     .word unused_asm_handler
+irq_vector:        .word irq_asm_handler
+fiq_vector:        .word fiq_asm_handler
+
+reset_asm_handler:
+
+;;@ Copy IVT at address 0 as it should be
+        mov r0,#0x8000
+        mov r1,#0x0000
+	ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
+	stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
+	ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
+	stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
+
 	// Setup the stack.
 	mov sp, #0x8000
  
@@ -41,3 +69,23 @@ halt:
 	wfe
 	b halt
 
+undefined_asm_handler:
+        b undefined_asm_handler
+
+swi_asm_handler:
+        b swi_asm_handler
+
+prefetch_asm_handler:
+        b prefetch_asm_handler
+
+data_asm_handler:
+        b data_asm_handler
+
+unused_asm_handler:
+        b unused_asm_handler
+
+irq_asm_handler:
+        b irq_asm_handler
+
+fiq_asm_handler:
+        b fiq_asm_handler
