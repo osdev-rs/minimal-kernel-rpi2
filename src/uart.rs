@@ -1,4 +1,3 @@
-use core::intrinsics::abort;
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 
@@ -25,17 +24,17 @@ fn receive_fifo_empty() -> bool {
     mmio_read(UART_FR) & (1 << 4) > 0
 }
 
-fn writec(c: u8) {
+pub fn writec(c: u8) {
     while transmit_fifo_full() {}
     mmio_write(UART_DR, c as u32);
 }
 
-fn getc() -> u8 {
+pub fn getc() -> u8 {
     while receive_fifo_empty() {}
     mmio_read(UART_DR) as u8
 }
 
-fn write(msg: &str) {
+pub fn write(msg: &str) {
     for c in msg.chars() {
         writec(c as u8)
     }
