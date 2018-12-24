@@ -33,3 +33,8 @@ pub extern fn eh_personality() {}
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
+
+#[no_mangle]
+pub extern fn irq_handler() {
+    uart::write("irq_handler\n");
+}

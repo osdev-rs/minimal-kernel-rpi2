@@ -85,7 +85,10 @@ unused_asm_handler:
         b unused_asm_handler
 
 irq_asm_handler:
-        b irq_asm_handler
+        push {r0-r3,r12,lr}
+        bl irq_handler
+        pop {r0-r3,r12,lr}
+        subs pc,lr,#4
 
 fiq_asm_handler:
         b fiq_asm_handler
