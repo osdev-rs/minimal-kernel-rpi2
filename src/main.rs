@@ -1,4 +1,4 @@
-#![feature(global_asm)]
+#![feature(global_asm, asm)]
 #![feature(core_intrinsics, lang_items)]
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
@@ -13,9 +13,16 @@ mod uart;
 #[no_mangle]
 pub extern fn kernel_main() {
     uart::write("Hello Rust Kernel world!\n");
+    enable_irq();
+    uart::write("irq_enable\n");
     loop {
         uart::writec(uart::getc())
     }
+}
+
+#[inline]
+fn enable_irq() {
+    unsafe { asm!("cpsie i");}
 }
 
 //#[no_mangle]
