@@ -1,4 +1,7 @@
 ENTRY(_start)
+
+SYS_STACK_SIZE = 1024;
+IRQ_STACK_SIZE = 1024;
  
 SECTIONS
 {
@@ -38,5 +41,19 @@ SECTIONS
     }
     . = ALIGN(4096); /* align to page size */
     __bss_end = .;
+
+    .stack : {
+        __stack_start__ = .;
+
+        . += SYS_STACK_SIZE;
+        . = ALIGN(4);
+        __sys_stack_end__ = .;
+
+        . += IRQ_STACK_SIZE;
+        . = ALIGN(4);
+        __irq_stack_end__ = .;
+    }
+
     __end = .;
+
 }

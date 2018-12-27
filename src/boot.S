@@ -39,9 +39,19 @@ reset_asm_handler:
 	ldmia r0!,{r2,r3,r4,r5,r6,r7,r8,r9}
 	stmia r1!,{r2,r3,r4,r5,r6,r7,r8,r9}
 
-	// Setup the stack.
-	mov sp, #0x8000
- 
+        // Setup Stack
+        // IRQ
+        // (PSR_IRQ_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+        mov r0,#0xD2
+        msr cpsr_c,r0
+        ldr sp, =__irq_stack_end__
+
+
+        // (PSR_SYSTEM_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+        mov r0,#0xDF
+        msr cpsr_c,r0
+        ldr sp, =__sys_stack_end__
+
 	// Clear out bss.
 	ldr r4, =__bss_start
 	ldr r9, =__bss_end
