@@ -54,6 +54,11 @@ SECTIONS
         __irq_stack_end__ = .;
     }
 
+    . = ALIGN(4096);
+    __kernel_heap_start__ = .;
+    . = 0xFFFFFF;
+    __kernel_heap_end__ = .;
+
     __end = .;
 
 }

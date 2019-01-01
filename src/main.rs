@@ -1,6 +1,7 @@
 #![feature(global_asm, asm)]
 #![feature(alloc, alloc_error_handler)]
 #![feature(core_intrinsics, lang_items)]
+#![feature(ptr_wrapping_offset_from)]
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
