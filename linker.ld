@@ -42,6 +42,14 @@ SECTIONS
     . = ALIGN(4096); /* align to page size */
     __bss_end = .;
 
+    .kernelheap : {
+        __kernel_heap_start__ = .;
+        . += 0x100000;
+    }
+
+    . = ALIGN(4096);
+    __kernel_heap_end__ = .;
+
     .stack : {
         __stack_start__ = .;
 
@@ -53,11 +61,6 @@ SECTIONS
         . = ALIGN(4);
         __irq_stack_end__ = .;
     }
-
-    . = ALIGN(4096);
-    __kernel_heap_start__ = .;
-    . = 0xFFFFFF;
-    __kernel_heap_end__ = .;
 
     __end = .;
 

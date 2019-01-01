@@ -5,7 +5,7 @@ authors = ["papamitra <papamitra@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-lazy_static = {version = "1.2.0", features = ["spin_no_std"]}
+#lazy_static = {version = "1.2.0", features = ["spin_no_std"]}
 spin = "0.4"
 
 [profile.dev]

@@ -7,6 +7,7 @@
 
 global_asm!(include_str!("boot.S"));
 
+#[macro_use]
 extern crate alloc;
 
 use core::panic::PanicInfo;
@@ -26,15 +27,17 @@ static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
 
 #[no_mangle]
 pub extern fn kernel_main() {
-    uart::write("Hello Rust Kernel world!\n");
+    unsafe {mem::init()};
     hw::enable_uart_irq();
+
     enable_irq();
 
-    let v = Box::new(4);
+//    let v = Box::new(4);
+//    if *v == 4 {
+//        uart::write(&format!("{}\n", 123456));
+//    }
 
-//    uart::write("irq_enable\n");
     loop {
-        //uart::writec(uart::getc())
     }
 }
 
