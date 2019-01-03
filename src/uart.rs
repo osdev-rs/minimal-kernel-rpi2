@@ -1,12 +1,39 @@
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 
-// raspi2 and raspi3 have peripheral base address 0x3F000000,
-// but raspi1 has peripheral base address 0x20000000. Ensure
-// you are using the correct peripheral address for your
-// hardware.
-const UART_DR: u32 = 0x3F201000;
-const UART_FR: u32 = 0x3F201018;
+// The GPIO registers base address.
+const GPIO_BASE: u32 = 0x3F200000; // for raspi2 & 3, 0x20200000 for raspi1
+
+// The offsets for reach register.
+
+// Controls actuation of pull up/down to ALL GPIO pins.
+const GPPUD: u32 = (GPIO_BASE + 0x94);
+
+// Controls actuation of pull up/down for specific GPIO pin.
+const GPPUDCLK0: u32 = (GPIO_BASE + 0x98);
+
+// The base address for UART.
+const UART0_BASE: u32 = 0x3F201000; // for raspi2 & 3, 0x20201000 for raspi1
+
+// The offsets for reach register for the UART.
+const UART0_DR: u32 = (UART0_BASE + 0x00);
+const UART0_RSRECR: u32 = (UART0_BASE + 0x04);
+const UART0_FR: u32 = (UART0_BASE + 0x18);
+const UART0_ILPR: u32 = (UART0_BASE + 0x20);
+const UART0_IBRD: u32 = (UART0_BASE + 0x24);
+const UART0_FBRD: u32 = (UART0_BASE + 0x28);
+const UART0_LCRH: u32 = (UART0_BASE + 0x2C);
+const UART0_CR: u32 = (UART0_BASE + 0x30);
+const UART0_IFLS: u32 = (UART0_BASE + 0x34);
+const UART0_IMSC: u32 = (UART0_BASE + 0x38);
+const UART0_RIS: u32 = (UART0_BASE + 0x3C);
+const UART0_MIS: u32 = (UART0_BASE + 0x40);
+const UART0_ICR: u32 = (UART0_BASE + 0x44);
+const UART0_DMACR: u32 = (UART0_BASE + 0x48);
+const UART0_ITCR: u32 = (UART0_BASE + 0x80);
+const UART0_ITIP: u32 = (UART0_BASE + 0x84);
+const UART0_ITOP: u32 = (UART0_BASE + 0x88);
+const UART0_TDR: u32 = (UART0_BASE + 0x8C);
 
 fn mmio_write(reg: u32, val: u32) {
     unsafe { volatile_store(reg as *mut u32, val) }
@@ -16,26 +43,77 @@ fn mmio_read(reg: u32) -> u32 {
     unsafe { volatile_load(reg as *const u32) }
 }
 
+#[inline]
+fn delay(count: i32) {
+    let mut count = count;
+    unsafe {
+        asm!("${:private}_delay_${:uid}: subs $0, $0, #1; bne ${:private}_delay_${:uid}\n"
+	         : "=r"(count): "0"(count) : "cc": "volatile");
+    }
+}
+
 fn transmit_fifo_full() -> bool {
-    mmio_read(UART_FR) & (1 << 5) > 0
+    mmio_read(UART0_FR) & (1 << 5) > 0
 }
 
 fn receive_fifo_empty() -> bool {
-    mmio_read(UART_FR) & (1 << 4) > 0
+    mmio_read(UART0_FR) & (1 << 4) > 0
 }
 
 pub fn writec(c: u8) {
     while transmit_fifo_full() {}
-    mmio_write(UART_DR, c as u32);
+    mmio_write(UART0_DR, c as u32);
 }
 
 pub fn getc() -> u8 {
     while receive_fifo_empty() {}
-    mmio_read(UART_DR) as u8
+    mmio_read(UART0_DR) as u8
 }
 
 pub fn write(msg: &str) {
     for c in msg.chars() {
         writec(c as u8)
     }
+}
+
+pub fn init() {
+    // Disable UART0.
+    mmio_write(UART0_CR, 0x00000000);
+    // Setup the GPIO pin 14 && 15.
+
+    // Disable pull up/down for all GPIO pins & delay for 150 cycles.
+    mmio_write(GPPUD, 0x00000000);
+    delay(150);
+
+    // Disable pull up/down for pin 14,15 & delay for 150 cycles.
+    mmio_write(GPPUDCLK0, (1 << 14) | (1 << 15));
+    delay(150);
+
+    // Write 0 to GPPUDCLK0 to make it take effect.
+    mmio_write(GPPUDCLK0, 0x00000000);
+
+    // Clear pending interrupts.
+    mmio_write(UART0_ICR, 0x7FF);
+
+    // Set integer & fractional part of baud rate.
+    // Divider = UART_CLOCK/(16 * Baud)
+    // Fraction part register = (Fractional part * 64) + 0.5
+    // UART_CLOCK = 3000000; Baud = 115200.
+
+    // Divider = 3000000 / (16 * 115200) = 1.627 = ~1.
+    mmio_write(UART0_IBRD, 1);
+    // Fractional part register = (.627 * 64) + 0.5 = 40.6 = ~40.
+    mmio_write(UART0_FBRD, 40);
+
+    // Enable FIFO & 8 bit data transmissio (1 stop bit, no parity).
+    mmio_write(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
+
+    // Mask all interrupts.
+    mmio_write(
+        UART0_IMSC,
+        (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10),
+    );
+
+    // Enable UART0, receive & transfer part of UART.
+    mmio_write(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
 }

@@ -28,8 +28,9 @@ static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
 #[no_mangle]
 pub extern fn kernel_main() {
     unsafe {mem::init()};
-    hw::enable_uart_irq();
+    uart::init();
 
+    hw::enable_uart_irq();
     enable_irq();
 
 //    let v = Box::new(4);
