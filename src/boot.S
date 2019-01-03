@@ -31,6 +31,16 @@ fiq_vector:        .word fiq_asm_handler
 
 reset_asm_handler:
 
+        // disable core1-3
+        mrc p15, 0, r1, c0, c0, 5
+        and r1, r1, #3
+        cmp r1, #0
+        beq 2f
+
+1:      wfe
+        b 1b
+2:
+
 ;;@ Copy IVT at address 0 as it should be
         mov r0,#0x8000
         mov r1,#0x0000
