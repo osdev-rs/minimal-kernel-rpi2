@@ -1,5 +1,5 @@
 {
-    "llvm-target": "armv7-none-eabihf",
+    "llvm-target": "armv7a-none-eabihf",
     "target-endian": "little",
     "target-pointer-width": "32",
     "target-c-int-width": "32",
