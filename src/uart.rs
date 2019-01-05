@@ -1,39 +1,45 @@
 use core::intrinsics::volatile_load;
 use core::intrinsics::volatile_store;
 
+#[allow(dead_code)]
+mod constval {
 // The GPIO registers base address.
-const GPIO_BASE: u32 = 0x3F200000; // for raspi2 & 3, 0x20200000 for raspi1
+pub const GPIO_BASE: u32 = 0x3F200000; // for raspi2 & 3, 0x20200000 for raspi1
 
 // The offsets for reach register.
 
 // Controls actuation of pull up/down to ALL GPIO pins.
-const GPPUD: u32 = (GPIO_BASE + 0x94);
+pub const GPPUD: u32 = (GPIO_BASE + 0x94);
 
 // Controls actuation of pull up/down for specific GPIO pin.
-const GPPUDCLK0: u32 = (GPIO_BASE + 0x98);
+pub const GPPUDCLK0: u32 = (GPIO_BASE + 0x98);
 
 // The base address for UART.
-const UART0_BASE: u32 = 0x3F201000; // for raspi2 & 3, 0x20201000 for raspi1
+pub const UART0_BASE: u32 = 0x3F201000; // for raspi2 & 3, 0x20201000 for raspi1
 
 // The offsets for reach register for the UART.
-const UART0_DR: u32 = (UART0_BASE + 0x00);
-const UART0_RSRECR: u32 = (UART0_BASE + 0x04);
-const UART0_FR: u32 = (UART0_BASE + 0x18);
-const UART0_ILPR: u32 = (UART0_BASE + 0x20);
-const UART0_IBRD: u32 = (UART0_BASE + 0x24);
-const UART0_FBRD: u32 = (UART0_BASE + 0x28);
-const UART0_LCRH: u32 = (UART0_BASE + 0x2C);
-const UART0_CR: u32 = (UART0_BASE + 0x30);
-const UART0_IFLS: u32 = (UART0_BASE + 0x34);
-const UART0_IMSC: u32 = (UART0_BASE + 0x38);
-const UART0_RIS: u32 = (UART0_BASE + 0x3C);
-const UART0_MIS: u32 = (UART0_BASE + 0x40);
-const UART0_ICR: u32 = (UART0_BASE + 0x44);
-const UART0_DMACR: u32 = (UART0_BASE + 0x48);
-const UART0_ITCR: u32 = (UART0_BASE + 0x80);
-const UART0_ITIP: u32 = (UART0_BASE + 0x84);
-const UART0_ITOP: u32 = (UART0_BASE + 0x88);
-const UART0_TDR: u32 = (UART0_BASE + 0x8C);
+pub const UART0_DR: u32 = (UART0_BASE + 0x00);
+pub const UART0_RSRECR: u32 = (UART0_BASE + 0x04);
+pub const UART0_FR: u32 = (UART0_BASE + 0x18);
+pub const UART0_ILPR: u32 = (UART0_BASE + 0x20);
+pub const UART0_IBRD: u32 = (UART0_BASE + 0x24);
+pub const UART0_FBRD: u32 = (UART0_BASE + 0x28);
+pub const UART0_LCRH: u32 = (UART0_BASE + 0x2C);
+pub const UART0_CR: u32 = (UART0_BASE + 0x30);
+pub const UART0_IFLS: u32 = (UART0_BASE + 0x34);
+pub const UART0_IMSC: u32 = (UART0_BASE + 0x38);
+pub const UART0_RIS: u32 = (UART0_BASE + 0x3C);
+pub const UART0_MIS: u32 = (UART0_BASE + 0x40);
+pub const UART0_ICR: u32 = (UART0_BASE + 0x44);
+pub const UART0_DMACR: u32 = (UART0_BASE + 0x48);
+pub const UART0_ITCR: u32 = (UART0_BASE + 0x80);
+pub const UART0_ITIP: u32 = (UART0_BASE + 0x84);
+pub const UART0_ITOP: u32 = (UART0_BASE + 0x88);
+pub const UART0_TDR: u32 = (UART0_BASE + 0x8C);
+
+}
+
+use self::constval::*;
 
 fn mmio_write(reg: u32, val: u32) {
     unsafe { volatile_store(reg as *mut u32, val) }
