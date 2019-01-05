@@ -41,6 +41,12 @@ reset_asm_handler:
         b 1b
 2:
 
+        // enable NEON/VFP
+        ldr r0, =(0xF << 20)
+        mcr p15, 0, r0, c1, c0, 2
+        mov r3, #0x40000000
+        vmsr FPEXC, r3
+
 ;;@ Copy IVT at address 0 as it should be
         mov r0,#0x8000
         mov r1,#0x0000
