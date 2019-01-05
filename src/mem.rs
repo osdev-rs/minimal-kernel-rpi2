@@ -9,33 +9,32 @@ struct FreeInfo {
 
 pub struct KernelAllocator;
 
-extern {
-    static __kernel_heap_start__: *mut u8;
-    static __kernel_heap_end__: *mut u8;
-}
-
 static mut FREES: usize = 0;
 static mut FREE: [FreeInfo; 4090] = [FreeInfo{addr:0,size:0}; 4090];
 
 use super::uart;
 
+extern {
+    fn kernel_heap_start() -> u32;
+    fn kernel_heap_end() -> u32;
+}
+
 pub unsafe fn init() {
 
     FREES = 1;
-    FREE[0] = FreeInfo{addr: 0x2000000,
-                       size: 0x100000};
-
-//    FREE[0] = FreeInfo{
-//        addr: unsafe {__kernel_heap_start__ as u32},
-//        size: unsafe {__kernel_heap_end__.wrapping_offset_from(
-//            __kernel_heap_start__) as usize } * size_of::<u32>()};
-
+    FREE[0] = FreeInfo{
+        addr: kernel_heap_start() ,
+        size: (kernel_heap_end() - kernel_heap_start()) as usize
+    };
 }
 
 unsafe impl GlobalAlloc for KernelAllocator {
+    // FIXME: ensure that return address is multiple of layout.align()
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         for i in 0..FREES {
-            let size = layout.align();
+            let s = layout.size();
+            let a = layout.align();
+            let size = a * ((s / a) + if s % a > 0 {1} else {0});
 
             if FREE[i].size >= size {
                 let addr = FREE[i].addr as *mut u8;

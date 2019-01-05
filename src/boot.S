@@ -118,3 +118,13 @@ irq_asm_handler:
 
 fiq_asm_handler:
         b fiq_asm_handler
+
+.globl kernel_heap_start
+kernel_heap_start:
+        ldr r0, =__kernel_heap_start__
+        bx lr
+
+.globl kernel_heap_end
+kernel_heap_end:
+        ldr r0, =__kernel_heap_end__
+        bx lr
