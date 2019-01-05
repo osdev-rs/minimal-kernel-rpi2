@@ -12,7 +12,7 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 use core::intrinsics::volatile_load;
-use crate::alloc::boxed::Box;
+//use alloc::prelude::*;
 
 mod uart;
 mod hw;
@@ -33,10 +33,7 @@ pub extern fn kernel_main() {
     hw::enable_uart_irq();
     enable_irq();
 
-//    let v = Box::new(4);
-//    if *v == 4 {
-//        uart::write(&format!("{}\n", 123456));
-//    }
+    uart::write(&format!("{}\n", "hello, rust-os"));
 
     loop {
     }
@@ -52,15 +49,8 @@ fn disable_irq() {
     unsafe {asm!("cpsid i");}
 }
 
-//#[no_mangle]
-//pub extern fn __aeabi_unwind_cpp_pr0() {}
-
 #[lang = "eh_personality"]
 pub extern fn eh_personality() {}
-
-//#[allow(non_snake_case)]
-//#[no_mangle]
-//pub extern fn _Unwind_Resume() { loop {} }
 
 /// This function is called on panic.
 #[panic_handler]
