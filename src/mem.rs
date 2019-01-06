@@ -17,8 +17,18 @@ static mut FREE: [FreeInfo; MAX_FREES] = [FreeInfo{addr:0,size:0}; MAX_FREES];
 use super::uart;
 
 extern {
-    fn kernel_heap_start() -> u32;
-    fn kernel_heap_end() -> u32;
+    static __kernel_heap_start__: u32;
+    static __kernel_heap_end__: u32;
+}
+
+#[inline]
+unsafe fn kernel_heap_start() -> u32 {
+    &__kernel_heap_start__ as *const _ as u32
+}
+
+#[inline]
+unsafe fn kernel_heap_end() -> u32 {
+    &__kernel_heap_end__ as *const _ as u32
 }
 
 pub unsafe fn init() {
