@@ -15,22 +15,34 @@ use core::intrinsics::volatile_load;
 //use alloc::prelude::*;
 
 mod uart;
-mod hw;
 mod mem;
+mod util;
 
-const CORE0_INTERRUPT_SOURCE: u32 = 0x40000060;
-const IRQ_PEND2: u32 = 0x3F00B208;
-const UART0_MIS: u32 = 0x3f201040;
+use self::util::mmio_write;
+
+#[allow(dead_code)]
+mod constval {
+    pub const CORE0_INTERRUPT_SOURCE: u32 = 0x40000060;
+    pub const IRQ_PEND1: u32 = 0x3F00B204;
+    pub const IRQ_PEND2: u32 = 0x3F00B208;
+    pub const UART0_MIS: u32 = 0x3f201040;
+    pub const GPU_INTERRUPTS_ROUTING: u32 = 0x4000000C;
+}
+
+use self::constval::*;
 
 #[global_allocator]
 static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
 
 #[no_mangle]
 pub extern fn kernel_main() {
+
     unsafe {mem::init()};
     uart::init();
 
-    hw::enable_uart_irq();
+    // route IRQ to CORE0
+    unsafe {mmio_write(GPU_INTERRUPTS_ROUTING, 0u32);};
+
     enable_irq();
 
     uart::write(&format!("{}\n", "hello, rust-os"));
