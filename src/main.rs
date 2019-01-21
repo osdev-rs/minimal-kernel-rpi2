@@ -17,12 +17,14 @@ use core::intrinsics::volatile_load;
 mod uart;
 mod mem;
 mod util;
+mod timer;
 
-use self::util::mmio_write;
+use self::util::{mmio_write, mmio_read};
 
 #[allow(dead_code)]
 mod constval {
     pub const CORE0_INTERRUPT_SOURCE: u32 = 0x40000060;
+    pub const IRQ_PEND_BASIC: u32 = 0x3F00B200;
     pub const IRQ_PEND1: u32 = 0x3F00B204;
     pub const IRQ_PEND2: u32 = 0x3F00B208;
     pub const UART0_MIS: u32 = 0x3f201040;
@@ -39,15 +41,17 @@ pub extern fn kernel_main() {
 
     unsafe {mem::init()};
     uart::init();
+    timer::init();
 
     // route IRQ to CORE0
     unsafe {mmio_write(GPU_INTERRUPTS_ROUTING, 0u32);};
 
     enable_irq();
 
-    uart::write(&format!("{}\n", "hello, rust-os"));
+//    uart::write(&format!("{}\n", "hello, rust-os"));
 
     loop {
+//        uart::write(&format!("SYSTEM_TIMER_C1: {}\n", unsafe { mmio_read(timer::SYSTEM_TIMER_CLO) }));
     }
 }
 
@@ -83,6 +87,10 @@ pub extern fn irq_handler() {
             if unsafe { check_flag(UART0_MIS, 1 << 4) } {
                 uart::writec(uart::getc());
             }
+        }
+
+        if unsafe { check_flag(IRQ_PEND1, 1 << 1) } {
+            timer::timer_isr();
         }
     }
 
