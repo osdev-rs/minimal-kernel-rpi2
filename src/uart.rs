@@ -1,5 +1,5 @@
-use core::intrinsics::volatile_load;
-use core::intrinsics::volatile_store;
+
+use super::util::{mmio_write, mmio_read, enable_irq_no};
 
 #[allow(dead_code)]
 mod constval {
@@ -41,14 +41,6 @@ pub const UART0_TDR: u32 = (UART0_BASE + 0x8C);
 
 use self::constval::*;
 
-fn mmio_write(reg: u32, val: u32) {
-    unsafe { volatile_store(reg as *mut u32, val) }
-}
-
-fn mmio_read(reg: u32) -> u32 {
-    unsafe { volatile_load(reg as *const u32) }
-}
-
 #[inline]
 fn delay(count: i32) {
     let mut count = count;
@@ -59,21 +51,21 @@ fn delay(count: i32) {
 }
 
 fn transmit_fifo_full() -> bool {
-    mmio_read(UART0_FR) & (1 << 5) > 0
+    unsafe {mmio_read(UART0_FR) & (1 << 5) > 0}
 }
 
 fn receive_fifo_empty() -> bool {
-    mmio_read(UART0_FR) & (1 << 4) > 0
+    unsafe {mmio_read(UART0_FR) & (1 << 4) > 0}
 }
 
 pub fn writec(c: u8) {
     while transmit_fifo_full() {}
-    mmio_write(UART0_DR, c as u32);
+    unsafe {mmio_write(UART0_DR, c as u32);}
 }
 
 pub fn getc() -> u8 {
     while receive_fifo_empty() {}
-    mmio_read(UART0_DR) as u8
+    unsafe {mmio_read(UART0_DR) as u8}
 }
 
 pub fn write(msg: &str) {
@@ -83,43 +75,51 @@ pub fn write(msg: &str) {
 }
 
 pub fn init() {
-    // Disable UART0.
-    mmio_write(UART0_CR, 0x00000000);
-    // Setup the GPIO pin 14 && 15.
+    unsafe {
+        // Disable UART0.
+        mmio_write(UART0_CR, 0x00000000);
+        // Setup the GPIO pin 14 && 15.
 
-    // Disable pull up/down for all GPIO pins & delay for 150 cycles.
-    mmio_write(GPPUD, 0x00000000);
-    delay(150);
+        // Disable pull up/down for all GPIO pins & delay for 150 cycles.
+        mmio_write(GPPUD, 0x00000000);
+        delay(150);
 
-    // Disable pull up/down for pin 14,15 & delay for 150 cycles.
-    mmio_write(GPPUDCLK0, (1 << 14) | (1 << 15));
-    delay(150);
+        // Disable pull up/down for pin 14,15 & delay for 150 cycles.
+        mmio_write(GPPUDCLK0, (1 << 14) | (1 << 15));
+        delay(150);
 
-    // Write 0 to GPPUDCLK0 to make it take effect.
-    mmio_write(GPPUDCLK0, 0x00000000);
+        // Write 0 to GPPUDCLK0 to make it take effect.
+        mmio_write(GPPUDCLK0, 0x00000000);
 
-    // Clear pending interrupts.
-    mmio_write(UART0_ICR, 0x7FF);
+        // Clear pending interrupts.
+        mmio_write(UART0_ICR, 0x7FF);
 
-    // Set integer & fractional part of baud rate.
-    // Divider = UART_CLOCK/(16 * Baud)
-    // Fraction part register = (Fractional part * 64) + 0.5
-    // UART_CLOCK = 3000000; Baud = 115200.
+        // Set integer & fractional part of baud rate.
+        // Divider = UART_CLOCK/(16 * Baud)
+        // Fraction part register = (Fractional part * 64) + 0.5
+        // UART_CLOCK = 3000000; Baud = 115200.
 
-    // Divider = 3000000 / (16 * 115200) = 1.627 = ~1.
-    mmio_write(UART0_IBRD, 1);
-    // Fractional part register = (.627 * 64) + 0.5 = 40.6 = ~40.
-    mmio_write(UART0_FBRD, 40);
+        // Divider = 3000000 / (16 * 115200) = 1.627 = ~1.
+        mmio_write(UART0_IBRD, 1);
+        // Fractional part register = (.627 * 64) + 0.5 = 40.6 = ~40.
+        mmio_write(UART0_FBRD, 40);
 
-    // Enable FIFO & 8 bit data transmissio (1 stop bit, no parity).
-    mmio_write(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
+        // Enable FIFO & 8 bit data transmissio (1 stop bit, no parity).
+        mmio_write(UART0_LCRH, (1 << 4) | (1 << 5) | (1 << 6));
 
-    // Mask all interrupts.
-    mmio_write(
-        UART0_IMSC,
-        (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10),
-    );
+        // Mask all interrupts.
+//        mmio_write(
+//            UART0_IMSC,
+//            (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10),
+//        );
 
-    // Enable UART0, receive & transfer part of UART.
-    mmio_write(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
+        // Enable UART0, receive & transfer part of UART.
+        mmio_write(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
+
+        // unmask RX IRQ
+        mmio_write(UART0_IMSC, (1 << 4));
+
+        // enable uart irq
+        enable_irq_no(57);
+    }
 }
