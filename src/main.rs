@@ -2,6 +2,7 @@
 #![feature(alloc, alloc_error_handler)]
 #![feature(core_intrinsics, lang_items)]
 #![feature(ptr_wrapping_offset_from)]
+#![feature(align_offset)]
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
@@ -18,8 +19,13 @@ mod uart;
 mod mem;
 mod util;
 mod timer;
+mod task;
 
 use self::util::{mmio_write, mmio_read};
+
+extern "C" {
+    fn context_switch_to(sp: *mut *mut u8);
+}
 
 #[allow(dead_code)]
 mod constval {
@@ -31,10 +37,16 @@ mod constval {
     pub const GPU_INTERRUPTS_ROUTING: u32 = 0x4000000C;
 }
 
+
 use self::constval::*;
 
 #[global_allocator]
 static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
+
+extern "C" fn entry() {
+    uart::write("entry()\n");
+    loop{}
+}
 
 #[no_mangle]
 pub extern fn kernel_main() {
@@ -46,7 +58,13 @@ pub extern fn kernel_main() {
     // route IRQ to CORE0
     unsafe {mmio_write(GPU_INTERRUPTS_ROUTING, 0u32);};
 
+    let mut tcb = task::Tcb::new(entry);
+
     enable_irq();
+
+    unsafe {uart::write(&format!("tcb.sp: {}\n", *(tcb.sp as *mut u32)))};
+    uart::write(&format!("tcb.sp: {}\n", tcb.sp as u32));
+    unsafe {context_switch_to(&mut tcb.sp);}
 
 //    uart::write(&format!("{}\n", "hello, rust-os"));
 

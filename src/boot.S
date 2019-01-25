@@ -62,11 +62,15 @@ reset_asm_handler:
         msr cpsr_c,r0
         ldr sp, =__irq_stack_end__
 
-
         // (PSR_SYSTEM_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
         mov r0,#0xDF
         msr cpsr_c,r0
         ldr sp, =__sys_stack_end__
+
+        ;@ (PSR_SVC_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+        mov r0,#0xD3
+        msr cpsr_c,r0
+        ldr sp, =__svc_stack_end__
 
 	// Clear out bss.
 	ldr r4, =__bss_start
@@ -118,3 +122,12 @@ irq_asm_handler:
 
 fiq_asm_handler:
         b fiq_asm_handler
+
+.globl context_switch_to
+context_switch_to:
+    ldr sp, [r0]            @ get new task stack pointer // no way to load from r0 directly??
+
+    ldmfd sp!, {r4}         @ pop new task spsr
+    msr spsr_cxsf, r4
+
+    ldmfd sp!, {r0-r12, lr, pc}^   @ pop new task r0-r12, lr & pc
