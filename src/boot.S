@@ -115,10 +115,13 @@ unused_asm_handler:
         b unused_asm_handler
 
 irq_asm_handler:
-        push {r0-r3,r12,lr}
+        stmfd sp!, {r0-r12,lr}
+        sub r2, lr, #4
+        stmfd sp!, {r2}
+
         bl irq_handler
-        pop {r0-r3,r12,lr}
-        subs pc,lr,#4
+
+        ldmfd sp!, {r0-r12,lr,pc}^
 
 fiq_asm_handler:
         b fiq_asm_handler
