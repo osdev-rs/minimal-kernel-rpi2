@@ -44,8 +44,12 @@ use self::constval::*;
 static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
 
 extern "C" fn entry() {
-    uart::write("entry()\n");
-    loop{}
+    loop{
+        let mut cpsr:u32=0;
+        unsafe {asm!("mrs $0, cpsr" : "=r"(cpsr));}
+        uart::write(&format!("in entry processor mode : 0x{:x}\n", cpsr & 0x1F));
+        util::delay(100_000_000);
+    }
 }
 
 #[no_mangle]

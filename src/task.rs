@@ -54,7 +54,8 @@ unsafe fn stack_init(entry: unsafe extern "C" fn(),
     sa = sa.offset(-1); *sa = 0xdeadbeef;   // r0 TODO: entry function argument
 
     // cpsr
-    sa = sa.offset(-1); *sa = 0x13; // SVCMODE
+    //sa = sa.offset(-1); *sa = 0x13; // SVCMODE
+    sa = sa.offset(-1); *sa = 0x10; // USERMODE
 
 //    uart::write(&format!("sa: {}\n", sa as *mut u8 as u32));
     uart::write(&format!("*sa: {}\n", *sa));
