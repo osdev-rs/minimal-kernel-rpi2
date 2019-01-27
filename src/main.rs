@@ -102,8 +102,6 @@ unsafe fn check_flag(addr: u32, val: u32) -> bool {
 
 #[no_mangle]
 pub extern fn irq_handler() {
-    disable_irq();
-
     if unsafe { check_flag(CORE0_INTERRUPT_SOURCE, 1<<8) } {
         if unsafe { check_flag(IRQ_PEND2, 1 << 25)} {
             if unsafe { check_flag(UART0_MIS, 1 << 4) } {
@@ -117,7 +115,6 @@ pub extern fn irq_handler() {
     }
 
     uart::write("\nirq_handler\n");
-    enable_irq();
 }
 
 // for custom allocator
