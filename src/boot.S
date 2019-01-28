@@ -115,22 +115,25 @@ unused_asm_handler:
         b unused_asm_handler
 
 irq_asm_handler:
-        stmfd sp!, {r0-r12,lr}
-        sub r2, lr, #4
-        stmfd sp!, {r2}
+        sub lr, lr, #4
+        stmfd sp!, {lr}
+        stmfd sp!, {r0-r12}
 
         bl irq_handler
+        teq r0, #1
+        mov r0, sp
+        bleq demo_context_switch
 
-        ldmfd sp!, {r0-r12,lr,pc}^
+        ldmfd sp!, {r0-r12, pc}^
 
 fiq_asm_handler:
         b fiq_asm_handler
 
 .globl context_switch_to
 context_switch_to:
-    ldr sp, [r0]            @ get new task stack pointer // no way to load from r0 directly??
+        ldr sp, [r0]            @ get new task stack pointer
 
-    ldmfd sp!, {r4}         @ pop new task spsr
-    msr spsr_cxsf, r4
+	ldmfd sp!, {r4}         @ pop new task spsr
+	msr spsr_cxsf, r4
 
-    ldmfd sp!, {r0-r12, lr, pc}^   @ pop new task r0-r12, lr & pc
+	ldmfd sp!, {r0-r12, lr, pc}^   @ pop new task r0-r12, lr & pc

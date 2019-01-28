@@ -9,6 +9,7 @@ mod timer_registers {
 pub use self::timer_registers::*;
 use super::util::{mmio_write, mmio_read, enable_irq_no, IRQ_ENABLE1};
 use super::uart;
+use super::task;
 
 static mut cnt_1sec:u32 = 0;
 
@@ -16,13 +17,14 @@ pub fn timer_isr() {
     unsafe {
         uart::write("tick!!\n");
         write_cntv_tval(cnt_1sec);
-        let mut cpsr:u32=0;
+//        task::demo_task_switch();
+/*        let mut cpsr:u32=0;
         unsafe {asm!("mrs $0, cpsr" : "=r"(cpsr));}
         uart::write(&format!("in tick processor mode : 0x{:x}\n", cpsr & 0x1F));
         let mut spsr:u32=0;
         unsafe {asm!("mrs $0, spsr" : "=r"(spsr));}
         uart::write(&format!("in tick spsr processor mode : 0x{:x}\n", spsr & 0x1F));
-
+*/
     }
 }
 

@@ -62,15 +62,15 @@ pub extern fn kernel_main() {
     // route IRQ to CORE0
     unsafe {mmio_write(GPU_INTERRUPTS_ROUTING, 0u32);};
 
-    let mut tcb = task::Tcb::new(entry);
-
     enable_irq();
 
-    unsafe {uart::write(&format!("tcb.sp: {}\n", *(tcb.sp as *mut u32)))};
-    uart::write(&format!("tcb.sp: {}\n", tcb.sp as u32));
-    unsafe {context_switch_to(&mut tcb.sp);}
+    task::demo_start();
+
+//    unsafe {context_switch_to(&mut tcb.sp);}
 
 //    uart::write(&format!("{}\n", "hello, rust-os"));
+
+    uart::write("!!!! unreachable\n");
 
     loop {
 //        uart::write(&format!("SYSTEM_TIMER_C1: {}\n", unsafe { mmio_read(timer::SYSTEM_TIMER_CLO) }));
@@ -101,7 +101,7 @@ unsafe fn check_flag(addr: u32, val: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern fn irq_handler() {
+pub extern "C" fn irq_handler() -> u32 {
     if unsafe { check_flag(CORE0_INTERRUPT_SOURCE, 1<<8) } {
         if unsafe { check_flag(IRQ_PEND2, 1 << 25)} {
             if unsafe { check_flag(UART0_MIS, 1 << 4) } {
@@ -112,9 +112,16 @@ pub extern fn irq_handler() {
 
     if timer::read_core0timer_pending() & 0x08 > 0 {
         timer::timer_isr();
+        return 1
     }
 
     uart::write("\nirq_handler\n");
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn demo_context_switch(sp: *mut u32) {
+    task::demo_context_switch(sp);
 }
 
 // for custom allocator
