@@ -37,49 +37,13 @@ impl Tcb {
     pub fn new(entry: unsafe extern "C" fn()) -> Tcb {
         unsafe {
             let addr = alloc::alloc::alloc(Layout::new::<[u8; STACK_SIZE]>());
-            let sp = stack_init(entry, addr.offset(STACK_SIZE as isize));
+            let sp = (addr.offset(STACK_SIZE as isize) as u32 & !(7u32)) as *mut u8;
             Tcb{stack_addr: addr, stack_size: STACK_SIZE, sp: sp, r: [0xdeadbeef; 13], lr: task_exit as u32, cpsr: 0x10 , pc: entry as u32}
         }
     }
 }
 
 unsafe impl Send for Tcb{}
-
-#[rustfmt::skip]
-unsafe fn stack_init(entry: unsafe extern "C" fn(),
-                     stack_addr: *mut u8) -> *mut u8 {
-//    sa = sa.offset(-1isize * align_of::<u64>() as isize);
-    uart::write(&format!("stack_addr: {}\n", stack_addr as u32));
-
-    let mut sa = (stack_addr as u32 & !(7u32)) as *mut u32;
-
-//    uart::write(&format!("sa: {}\n", sa as u32));
-
-    sa = sa.offset(-1); *sa = entry as u32; // entry point
-    sa = sa.offset(-1); *sa = task_exit as u32; // lr
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r12
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r11
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r10
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r9
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r8
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r7
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r6
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r5
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r4
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r3
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r2
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r1
-    sa = sa.offset(-1); *sa = 0xdeadbeef;   // r0 TODO: entry function argument
-
-    // cpsr
-    //sa = sa.offset(-1); *sa = 0x13; // SVCMODE
-    sa = sa.offset(-1); *sa = 0x10; // USERMODE
-
-//    uart::write(&format!("sa: {}\n", sa as *mut u8 as u32));
-    uart::write(&format!("*sa: {}\n", *sa));
-
-    sa as *mut u8
-}
 
 extern "C" fn entry1() {
     loop {
@@ -103,16 +67,44 @@ lazy_static! {
 
 static mut current_task:usize = 0;
 
+#[no_mangle]
+extern "C" fn demo_setup_switch(sp: *mut u32) {
+    unsafe {
+        let tcbs = (*TCBS).lock().get();
+        {
+            let mut sp = sp;
+            for i in 0..13 {
+                *sp = (*tcbs)[current_task].r[i];
+                sp = sp.offset(1);
+            }
+            *sp = (*tcbs)[current_task].pc;
+
+            let cpsr = (*tcbs)[current_task].cpsr;
+            asm!("msr spsr_cxsf, $0" :: "r"(cpsr));
+        }
+
+        asm!("cps #31 @ SYSTEM MODE
+             mov lr, $0
+             mov sp, $1
+             cps #19  @ SVC MODE"
+             ::"r"((*tcbs)[current_task].lr), "r"((*tcbs)[current_task].sp));
+    }
+}
+
 pub fn demo_start() {
     unsafe {
-        let mut sp = {
+        {
             let tcbs = (*TCBS).lock().get();
             (*tcbs).push(Tcb::new(entry1));
             (*tcbs).push(Tcb::new(entry2));
-            (*tcbs)[current_task].sp
-        };
 
-        context_switch_to(&mut sp);
+        }
+
+        asm!("stmfd sp!, {r0-r12, lr}
+              mov r0, sp
+
+              bl demo_setup_switch
+              ldmfd sp!, {r0-r12, pc}^");
     }
 }
 
@@ -135,16 +127,16 @@ pub fn demo_context_switch(sp: *mut u32) {
             let mut cpsr = 0u32;
             asm!("mrs $0, spsr" : "=r"(cpsr));
             (*tcbs)[current].cpsr = cpsr;
+        }
 
-            let mut lr_tmp = 0u32;
-            let mut sp_tmp = 0u32;
-            asm!("cps #31
+        let mut lr_tmp = 0u32;
+        let mut sp_tmp = 0u32;
+        asm!("cps #31
                   mov $0, lr
                   mov $1, sp
                   cps #18" : "=r"(lr_tmp), "=r"(sp_tmp));
-            (*tcbs)[current].lr = lr_tmp;
-            (*tcbs)[current].sp = sp_tmp as *mut u8;
-        }
+        (*tcbs)[current].lr = lr_tmp;
+        (*tcbs)[current].sp = sp_tmp as *mut u8;
 
         {
             let mut sp = sp;
