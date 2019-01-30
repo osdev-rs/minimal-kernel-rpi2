@@ -10,40 +10,44 @@ use alloc::prelude::*;
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 use spin::Mutex;
-use core::borrow::BorrowMut;
-
-extern "C" {
-    fn context_switch_to(sp: *mut *mut u8);
-}
 
 pub struct Tcb {
     stack_addr: *mut u8,
     stack_size: usize,
-    pub sp: *mut u8,
-    pub r: [u32; 13],
-    pub lr: u32,
-    pub cpsr: u32,
-    pub pc: u32,
+    sp: *mut u32,
+    r: [u32; 13],
+    lr: *mut u8,
+    pc: *mut u8,
+    cpsr: u32,
 }
+
+unsafe impl Send for Tcb {}
+unsafe impl Sync for Tcb {}
 
 fn task_exit() {
     uart::write(&format!("task_exit\n"));
     loop {}
 }
 
-const STACK_SIZE: usize =  4096;
+const STACK_SIZE: usize = 4096;
 
 impl Tcb {
     pub fn new(entry: unsafe extern "C" fn()) -> Tcb {
         unsafe {
             let addr = alloc::alloc::alloc(Layout::new::<[u8; STACK_SIZE]>());
-            let sp = (addr.offset(STACK_SIZE as isize) as u32 & !(7u32)) as *mut u8;
-            Tcb{stack_addr: addr, stack_size: STACK_SIZE, sp: sp, r: [0xdeadbeef; 13], lr: task_exit as u32, cpsr: 0x10 , pc: entry as u32}
+            let sp = (addr.offset(STACK_SIZE as isize) as u32 & !(7u32)) as *mut u32;
+            Tcb {
+                stack_addr: addr,
+                stack_size: STACK_SIZE,
+                sp: sp,
+                r: [0xdeadbeef; 13],
+                lr: task_exit as *mut u8,
+                pc: entry as *mut u8,
+                cpsr: 0x10, /* User mode */
+            }
         }
     }
 }
-
-unsafe impl Send for Tcb{}
 
 extern "C" fn entry1() {
     loop {
@@ -60,24 +64,24 @@ extern "C" fn entry2() {
 }
 
 lazy_static! {
-    static ref TCBS: Arc<Mutex<UnsafeCell<Vec<Tcb>>>> = {
-        Arc::new(Mutex::new(UnsafeCell::new(Vec::new())))
+    static ref TCBS: Mutex<Vec<Tcb>> = {
+        Mutex::new(Vec::new())
     };
 }
 
-static mut current_task:usize = 0;
+static mut current_task: usize = 0;
 
 #[no_mangle]
 extern "C" fn demo_setup_switch(sp: *mut u32) {
     unsafe {
-        let tcbs = (*TCBS).lock().get();
+        let tcbs = (*TCBS).lock();
         {
             let mut sp = sp;
             for i in 0..13 {
                 *sp = (*tcbs)[current_task].r[i];
                 sp = sp.offset(1);
             }
-            *sp = (*tcbs)[current_task].pc;
+            *sp = (*tcbs)[current_task].pc as u32;
 
             let cpsr = (*tcbs)[current_task].cpsr;
             asm!("msr spsr_cxsf, $0" :: "r"(cpsr));
@@ -94,17 +98,19 @@ extern "C" fn demo_setup_switch(sp: *mut u32) {
 pub fn demo_start() {
     unsafe {
         {
-            let tcbs = (*TCBS).lock().get();
+            let mut tcbs = (*TCBS).lock();
             (*tcbs).push(Tcb::new(entry1));
             (*tcbs).push(Tcb::new(entry2));
 
         }
 
-        asm!("stmfd sp!, {r0-r12, lr}
+        asm!(
+            "stmfd sp!, {r0-r12, lr}
               mov r0, sp
 
               bl demo_setup_switch
-              ldmfd sp!, {r0-r12, pc}^");
+              ldmfd sp!, {r0-r12, pc}^"
+        );
     }
 }
 
@@ -115,28 +121,28 @@ pub fn demo_context_switch(sp: *mut u32) {
         current_task %= 2;
         let next = current_task;
 
-        let tcbs = (*TCBS).lock().get();
+        let mut tcbs = (*TCBS).lock();
         {
             let mut sp = sp;
             for i in 0..13 {
                 (*tcbs)[current].r[i] = *sp;
                 sp = sp.offset(1);
             }
-            (*tcbs)[current].pc = *sp;
+            (*tcbs)[current].pc = *sp as *mut u8;
 
             let mut cpsr = 0u32;
             asm!("mrs $0, spsr" : "=r"(cpsr));
             (*tcbs)[current].cpsr = cpsr;
         }
 
-        let mut lr_tmp = 0u32;
-        let mut sp_tmp = 0u32;
+        let mut lr_tmp: u32 = 0;
+        let mut sp_tmp: u32 = 0;
         asm!("cps #31
-                  mov $0, lr
-                  mov $1, sp
-                  cps #18" : "=r"(lr_tmp), "=r"(sp_tmp));
-        (*tcbs)[current].lr = lr_tmp;
-        (*tcbs)[current].sp = sp_tmp as *mut u8;
+              mov $0, lr
+              mov $1, sp
+              cps #18" : "=r"(lr_tmp), "=r"(sp_tmp));
+        (*tcbs)[current].lr = lr_tmp as *mut u8;
+        (*tcbs)[current].sp = sp_tmp as *mut u32;
 
         {
             let mut sp = sp;
@@ -144,16 +150,16 @@ pub fn demo_context_switch(sp: *mut u32) {
                 *sp = (*tcbs)[next].r[i];
                 sp = sp.offset(1);
             }
-            *sp = (*tcbs)[next].pc;
+            *sp = (*tcbs)[next].pc as u32;
 
             let cpsr = (*tcbs)[next].cpsr;
             asm!("msr spsr_cxsf, $0" :: "r"(cpsr));
         }
 
         asm!("cps #31
-             mov lr, $0
-             mov sp, $1
-             cps #18" ::"r"((*tcbs)[next].lr), "r"((*tcbs)[next].sp));
+              mov lr, $0
+              mov sp, $1
+              cps #18" ::"r"((*tcbs)[next].lr), "r"((*tcbs)[next].sp));
 
         uart::write("demo_context_switch end\n");
     }
