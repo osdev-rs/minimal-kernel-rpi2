@@ -13,7 +13,7 @@ extern crate alloc;
 
 use core::panic::PanicInfo;
 use core::intrinsics::volatile_load;
-//use alloc::prelude::*;
+use alloc::prelude::*;
 
 mod uart;
 mod mem;
@@ -65,6 +65,9 @@ pub extern fn kernel_main() {
     enable_irq();
 
     task::demo_start();
+
+    let _b = Box::new(1);
+    let _v = vec![1,2,3];
 
 //    unsafe {context_switch_to(&mut tcb.sp);}
 

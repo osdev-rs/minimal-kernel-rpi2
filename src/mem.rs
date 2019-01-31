@@ -7,8 +7,6 @@ struct FreeInfo {
     size: usize
 }
 
-pub struct KernelAllocator;
-
 const MAX_FREES:usize = 4090;
 
 static mut FREES: usize = 0;
@@ -32,7 +30,6 @@ unsafe fn kernel_heap_end() -> u32 {
 }
 
 pub unsafe fn init() {
-
     FREES = 1;
     FREE[0] = FreeInfo{
         addr: kernel_heap_start() ,
@@ -45,6 +42,8 @@ fn aligned_size(layout: &Layout) -> usize {
     let a = layout.align();
     return a * ((s / a) + if s % a > 0 {1} else {0});
 }
+
+pub struct KernelAllocator;
 
 unsafe impl GlobalAlloc for KernelAllocator {
     // FIXME: ensure that return address is multiple of layout.align()
