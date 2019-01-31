@@ -2,6 +2,7 @@
 #![feature(alloc, alloc_error_handler)]
 #![feature(core_intrinsics, lang_items)]
 #![feature(ptr_wrapping_offset_from)]
+#![feature(align_offset)]
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
@@ -18,8 +19,13 @@ mod uart;
 mod mem;
 mod util;
 mod timer;
+mod task;
 
 use self::util::{mmio_write, mmio_read};
+
+extern "C" {
+    fn context_switch_to(sp: *mut *mut u8);
+}
 
 #[allow(dead_code)]
 mod constval {
@@ -31,10 +37,20 @@ mod constval {
     pub const GPU_INTERRUPTS_ROUTING: u32 = 0x4000000C;
 }
 
+
 use self::constval::*;
 
 #[global_allocator]
 static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
+
+extern "C" fn entry() {
+    loop{
+        let mut cpsr:u32=0;
+        unsafe {asm!("mrs $0, cpsr" : "=r"(cpsr));}
+        uart::write(&format!("in entry processor mode : 0x{:x}\n", cpsr & 0x1F));
+        util::delay(100_000_000);
+    }
+}
 
 #[no_mangle]
 pub extern fn kernel_main() {
@@ -48,7 +64,13 @@ pub extern fn kernel_main() {
 
     enable_irq();
 
+    task::demo_start();
+
+//    unsafe {context_switch_to(&mut tcb.sp);}
+
 //    uart::write(&format!("{}\n", "hello, rust-os"));
+
+    uart::write("!!!! unreachable\n");
 
     loop {
 //        uart::write(&format!("SYSTEM_TIMER_C1: {}\n", unsafe { mmio_read(timer::SYSTEM_TIMER_CLO) }));
@@ -79,9 +101,7 @@ unsafe fn check_flag(addr: u32, val: u32) -> bool {
 }
 
 #[no_mangle]
-pub extern fn irq_handler() {
-    disable_irq();
-
+pub extern "C" fn irq_handler() -> u32 {
     if unsafe { check_flag(CORE0_INTERRUPT_SOURCE, 1<<8) } {
         if unsafe { check_flag(IRQ_PEND2, 1 << 25)} {
             if unsafe { check_flag(UART0_MIS, 1 << 4) } {
@@ -92,10 +112,16 @@ pub extern fn irq_handler() {
 
     if timer::read_core0timer_pending() & 0x08 > 0 {
         timer::timer_isr();
+        return 1
     }
 
     uart::write("\nirq_handler\n");
-    enable_irq();
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn demo_context_switch(sp: *mut u32) {
+    task::demo_context_switch(sp);
 }
 
 // for custom allocator

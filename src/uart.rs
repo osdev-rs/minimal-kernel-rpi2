@@ -40,15 +40,7 @@ pub const UART0_TDR: u32 = (UART0_BASE + 0x8C);
 }
 
 use self::constval::*;
-
-#[inline]
-fn delay(count: i32) {
-    let mut count = count;
-    unsafe {
-        asm!("${:private}_delay_${:uid}: subs $0, $0, #1; bne ${:private}_delay_${:uid}\n"
-	         : "=r"(count): "0"(count) : "cc": "volatile");
-    }
-}
+use super::util::delay;
 
 fn transmit_fifo_full() -> bool {
     unsafe {mmio_read(UART0_FR) & (1 << 5) > 0}

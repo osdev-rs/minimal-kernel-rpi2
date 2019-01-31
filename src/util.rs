@@ -26,3 +26,12 @@ pub fn enable_irq_no(irq_no: u8) {
         mmio_write(addr, 1 << irq_no);
     }
 }
+
+#[inline]
+pub fn delay(count: i32) {
+    let mut count = count;
+    unsafe {
+        asm!("${:private}_delay_${:uid}: subs $0, $0, #1; bne ${:private}_delay_${:uid}\n"
+	         : "=r"(count): "0"(count) : "cc": "volatile");
+    }
+}

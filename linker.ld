@@ -1,5 +1,6 @@
 ENTRY(_start)
 
+KERNEL_STACK_SIZE = 1024;
 SYS_STACK_SIZE = 1024;
 IRQ_STACK_SIZE = 1024;
  
@@ -52,6 +53,10 @@ SECTIONS
 
     .stack : {
         __stack_start__ = .;
+
+        . += KERNEL_STACK_SIZE;
+        . = ALIGN(4);
+        __svc_stack_end__ = .;
 
         . += SYS_STACK_SIZE;
         . = ALIGN(4);

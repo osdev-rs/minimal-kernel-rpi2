@@ -62,11 +62,15 @@ reset_asm_handler:
         msr cpsr_c,r0
         ldr sp, =__irq_stack_end__
 
-
         // (PSR_SYSTEM_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
         mov r0,#0xDF
         msr cpsr_c,r0
         ldr sp, =__sys_stack_end__
+
+        ;@ (PSR_SVC_MODE|PSR_FIQ_DIS|PSR_IRQ_DIS)
+        mov r0,#0xD3
+        msr cpsr_c,r0
+        ldr sp, =__svc_stack_end__
 
 	// Clear out bss.
 	ldr r4, =__bss_start
@@ -111,10 +115,16 @@ unused_asm_handler:
         b unused_asm_handler
 
 irq_asm_handler:
-        push {r0-r3,r12,lr}
+        sub lr, lr, #4
+        stmfd sp!, {lr}
+        stmfd sp!, {r0-r12}
+
         bl irq_handler
-        pop {r0-r3,r12,lr}
-        subs pc,lr,#4
+        teq r0, #1
+        mov r0, sp
+        bleq demo_context_switch
+
+        ldmfd sp!, {r0-r12, pc}^
 
 fiq_asm_handler:
         b fiq_asm_handler
