@@ -1,5 +1,3 @@
-use core::intrinsics::{volatile_load, volatile_store};
-
 #[allow(dead_code)]
 mod timer_registers {
     pub const CORE0_TIMER_IRQCNTL:u32 = 0x4000_0040;
@@ -7,16 +5,15 @@ mod timer_registers {
 }
 
 pub use self::timer_registers::*;
-use super::util::{mmio_write, mmio_read, enable_irq_no, IRQ_ENABLE1};
+use super::util::{mmio_write, mmio_read};
 use super::uart;
-use super::task;
 
-static mut cnt_1sec:u32 = 0;
+static mut CNT_1SEC:u32 = 0;
 
 pub fn timer_isr() {
     unsafe {
         uart::write("tick!!\n");
-        write_cntv_tval(cnt_1sec);
+        write_cntv_tval(CNT_1SEC);
 //        task::demo_task_switch();
 /*        let mut cpsr:u32=0;
         unsafe {asm!("mrs $0, cpsr" : "=r"(cpsr));}
@@ -49,7 +46,7 @@ fn enable_cntv() {
 
 fn read_cntfrq() -> u32 {
     unsafe {
-        let mut val:u32 = 0;
+        let mut val:u32;
         asm!("mrc p15, 0, $0, c14, c0, 0" : "=r"(val) );
         val
     }
@@ -63,8 +60,8 @@ fn write_cntv_tval(val: u32) {
 
 pub fn init() {
     unsafe {
-        cnt_1sec = read_cntfrq();
-        write_cntv_tval(cnt_1sec);
+        CNT_1SEC = read_cntfrq();
+        write_cntv_tval(CNT_1SEC);
 
         routing_core0cntv_to_core0irq();
         enable_cntv();

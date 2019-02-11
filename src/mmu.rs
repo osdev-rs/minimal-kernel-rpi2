@@ -26,7 +26,7 @@ use self::constant::*;
 unsafe fn disable_mmu() {
     //    asm!("mcr p15, 0, $0, c8, c7, 0" :: "r"(0) :: "volatile"); // invalidate tlb
 
-    let mut sctlr: u32 = 0;
+    let mut sctlr: u32;
     asm!("mrc p15, 0, $0, c1, c0, 0" : "=r"(sctlr) ::: "volatile");
     sctlr &= !1u32;
     asm!("mcr p15, 0, $0, c1, c0, 0" :: "r"(sctlr) :: "volatile");
@@ -35,7 +35,7 @@ unsafe fn disable_mmu() {
 
 #[inline]
 unsafe fn enable_mmu() {
-    let mut sctlr: u32 = 0;
+    let mut sctlr: u32;
     asm!("mrc p15, 0, $0, c1, c0, 0" : "=r"(sctlr) ::: "volatile");
     sctlr |= 1u32;
     asm!("mcr p15, 0, $0, c1, c0, 0" :: "r"(sctlr) :: "volatile");

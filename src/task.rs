@@ -1,5 +1,4 @@
 
-use core::mem::align_of;
 use super::alloc::alloc::Layout;
 
 use super::uart;
@@ -7,13 +6,11 @@ use super::util;
 
 use lazy_static::lazy_static;
 use alloc::prelude::*;
-use alloc::sync::Arc;
-use core::cell::UnsafeCell;
 use spin::Mutex;
 
 pub struct Tcb {
-    stack_addr: *mut u8,
-    stack_size: usize,
+    _stack_addr: *mut u8,
+    _stack_size: usize,
     sp: *mut u32,
     r: [u32; 13],
     lr: *mut u8,
@@ -37,8 +34,8 @@ impl Tcb {
             let addr = alloc::alloc::alloc(Layout::new::<[u8; STACK_SIZE]>());
             let sp = (addr.offset(STACK_SIZE as isize) as u32 & !(7u32)) as *mut u32;
             Tcb {
-                stack_addr: addr,
-                stack_size: STACK_SIZE,
+                _stack_addr: addr,
+                _stack_size: STACK_SIZE,
                 sp: sp,
                 r: [0xdeadbeef; 13],
                 lr: task_exit as *mut u8,
@@ -69,7 +66,7 @@ lazy_static! {
     };
 }
 
-static mut current_task: usize = 0;
+static mut CURRENT_TASK: usize = 0;
 
 #[no_mangle]
 extern "C" fn demo_setup_switch(sp: *mut u32) {
@@ -78,12 +75,12 @@ extern "C" fn demo_setup_switch(sp: *mut u32) {
         {
             let mut sp = sp;
             for i in 0..13 {
-                *sp = (*tcbs)[current_task].r[i];
+                *sp = (*tcbs)[CURRENT_TASK].r[i];
                 sp = sp.offset(1);
             }
-            *sp = (*tcbs)[current_task].pc as u32;
+            *sp = (*tcbs)[CURRENT_TASK].pc as u32;
 
-            let cpsr = (*tcbs)[current_task].cpsr;
+            let cpsr = (*tcbs)[CURRENT_TASK].cpsr;
             asm!("msr spsr_cxsf, $0" :: "r"(cpsr));
         }
 
@@ -91,7 +88,7 @@ extern "C" fn demo_setup_switch(sp: *mut u32) {
              mov lr, $0
              mov sp, $1
              cps #19  @ SVC MODE"
-             ::"r"((*tcbs)[current_task].lr), "r"((*tcbs)[current_task].sp));
+             ::"r"((*tcbs)[CURRENT_TASK].lr), "r"((*tcbs)[CURRENT_TASK].sp));
     }
 }
 
@@ -116,10 +113,10 @@ pub fn demo_start() {
 
 pub fn demo_context_switch(sp: *mut u32) {
     unsafe {
-        let current = current_task;
-        current_task += 1;
-        current_task %= 2;
-        let next = current_task;
+        let current = CURRENT_TASK;
+        CURRENT_TASK += 1;
+        CURRENT_TASK %= 2;
+        let next = CURRENT_TASK;
 
         let mut tcbs = (*TCBS).lock();
         {
@@ -130,13 +127,13 @@ pub fn demo_context_switch(sp: *mut u32) {
             }
             (*tcbs)[current].pc = *sp as *mut u8;
 
-            let mut cpsr = 0u32;
+            let mut cpsr:u32;
             asm!("mrs $0, spsr" : "=r"(cpsr));
             (*tcbs)[current].cpsr = cpsr;
         }
 
-        let mut lr_tmp: u32 = 0;
-        let mut sp_tmp: u32 = 0;
+        let mut lr_tmp: u32;
+        let mut sp_tmp: u32;
         asm!("cps #31
               mov $0, lr
               mov $1, sp

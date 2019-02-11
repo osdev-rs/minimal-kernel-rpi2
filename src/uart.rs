@@ -109,7 +109,7 @@ pub fn init() {
         mmio_write(UART0_CR, (1 << 0) | (1 << 8) | (1 << 9));
 
         // unmask RX IRQ
-        mmio_write(UART0_IMSC, (1 << 4));
+        mmio_write(UART0_IMSC, 1 << 4);
 
         // enable uart irq
         enable_irq_no(57);

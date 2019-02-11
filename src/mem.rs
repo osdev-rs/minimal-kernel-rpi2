@@ -1,5 +1,4 @@
 use core::alloc::{GlobalAlloc, Layout};
-use core::mem::size_of;
 
 #[derive(Clone,Copy)]
 struct FreeInfo {

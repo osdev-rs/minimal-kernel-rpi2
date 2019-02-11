@@ -3,9 +3,9 @@
 #![feature(core_intrinsics, lang_items)]
 #![feature(ptr_wrapping_offset_from)]
 #![feature(align_offset)]
-#![feature(repr_align, attr_literals)]
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
+#![allow(dead_code)]
 
 global_asm!(include_str!("boot.S"));
 
@@ -23,11 +23,7 @@ mod timer;
 mod task;
 mod mmu;
 
-use self::util::{mmio_write, mmio_read};
-
-extern "C" {
-    fn context_switch_to(sp: *mut *mut u8);
-}
+use self::util::mmio_write;
 
 #[allow(dead_code)]
 mod constval {
@@ -45,15 +41,6 @@ use self::constval::*;
 #[global_allocator]
 static GLOBAL: mem::KernelAllocator = mem::KernelAllocator;
 
-extern "C" fn entry() {
-    loop{
-        let mut cpsr:u32=0;
-        unsafe {asm!("mrs $0, cpsr" : "=r"(cpsr));}
-        uart::write(&format!("in entry processor mode : 0x{:x}\n", cpsr & 0x1F));
-        util::delay(100_000_000);
-    }
-}
-
 #[no_mangle]
 pub extern fn kernel_main() {
 
@@ -70,14 +57,11 @@ pub extern fn kernel_main() {
 
     task::demo_start();
 
-//    unsafe {context_switch_to(&mut tcb.sp);}
-
-//    uart::write(&format!("{}\n", "hello, rust-os"));
-
     uart::write("!!!! unreachable\n");
 
     loop {
 //        uart::write(&format!("SYSTEM_TIMER_C1: {}\n", unsafe { mmio_read(timer::SYSTEM_TIMER_CLO) }));
+        unsafe {asm!("" :::: "volatile");}
     }
 }
 
@@ -97,7 +81,9 @@ pub extern fn eh_personality() {}
 /// This function is called on panic.
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    loop {
+        unsafe {asm!("" :::: "volatile");}
+    }
 }
 
 unsafe fn check_flag(addr: u32, val: u32) -> bool {
