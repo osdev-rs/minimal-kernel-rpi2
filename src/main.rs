@@ -3,6 +3,7 @@
 #![feature(core_intrinsics, lang_items)]
 #![feature(ptr_wrapping_offset_from)]
 #![feature(align_offset)]
+#![feature(repr_align, attr_literals)]
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 
@@ -20,6 +21,7 @@ mod mem;
 mod util;
 mod timer;
 mod task;
+mod mmu;
 
 use self::util::{mmio_write, mmio_read};
 
@@ -63,6 +65,8 @@ pub extern fn kernel_main() {
     unsafe {mmio_write(GPU_INTERRUPTS_ROUTING, 0u32);};
 
     enable_irq();
+
+    mmu::init();
 
     task::demo_start();
 
