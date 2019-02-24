@@ -74,7 +74,7 @@ unsafe impl GlobalAlloc for KernelAllocator {
 
         let mut i = 0usize;
         for j in 0..FREES {
-            if FREE[i].addr > addr {
+            if FREE[j].addr > addr {
                 i = j;
                 break;
             }
@@ -109,8 +109,7 @@ unsafe impl GlobalAlloc for KernelAllocator {
                 FREE[j] = FREE[j-1];
             }
 
-            FREES -= 1;
-
+            FREES += 1;
             FREE[i].addr = addr;
             FREE[i].size = size;
             return;
